@@ -44,7 +44,8 @@ struct OdinMacApp: App {
                 .frame(width: WindowMetrics.size.width, height: WindowMetrics.size.height)
         }
         .windowStyle(.hiddenTitleBar)
-        .windowResizability(.contentSize)
+        // Window size is locked through AppDelegate (contentMin/MaxSize and
+        // removing .resizable). Avoid .windowResizability, which is macOS 13+.
         .commands {
             CommandGroup(replacing: .newItem) {}
         }

@@ -15,7 +15,7 @@ struct RootView: View {
                     Circle()
                         .stroke(Color(red: 0.2, green: 0.5, blue: 1.0).opacity(0.18), lineWidth: 1.5)
                         .frame(width: 80, height: 80)
-                    Image(systemName: "shield.lefthalf.filled.slash")
+                    Image(systemName: "shield.slash")
                         .font(.system(size: 34, weight: .light))
                         .foregroundColor(Color(red: 0.3, green: 0.6, blue: 1.0).opacity(0.6))
                 }
@@ -45,7 +45,7 @@ struct RootView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     plannedFeature(icon: "wand.and.stars",     text: "Guided Magisk installation workflow")
                     plannedFeature(icon: "desktopcomputer",    text: "Patch boot image directly on Mac")
-                    plannedFeature(icon: "iphone.and.arrow.forward.inward", text: "ADB integration for device control")
+                    plannedFeature(icon: "iphone", text: "ADB integration for device control")
                     plannedFeature(icon: "bolt.fill",          text: "Flash patched boot in one click")
                 }
 

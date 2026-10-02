@@ -4,27 +4,74 @@
 #
 # OdinMac is a native SwiftUI front-end; all device communication is handled by
 # the bundled Heimdall engine (vendor/heimdall/heimdall). See scripts/build-heimdall.sh.
+#
+# Builds for the host architecture (arm64 or x86_64) targeting macOS 12.0.
+# Override with ODINMAC_ARCH=arm64|x86_64 and ODINMAC_MACOS_MIN=12.0.
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# shellcheck source=scripts/macos-target.sh
+. "$SCRIPT_DIR/scripts/macos-target.sh"
+
 SDK=$(xcrun --show-sdk-path)
-TARGET="arm64-apple-macosx13.0"
+TARGET="$SWIFT_TARGET"
 BUILD_DIR=".build/odinmac"
 APP_BUNDLE="OdinMac.app"
 CONTENTS="$APP_BUNDLE/Contents"
 HEIMDALL_BIN="vendor/heimdall/heimdall"
 FW_FLAGS="-framework AppKit -framework SwiftUI -framework Foundation -framework UniformTypeIdentifiers -framework Combine -framework IOKit"
 
+echo "==> Target: $TARGET"
+
+heimdall_has_arch() {
+  local bin="$1" want="$2"
+  if command -v lipo >/dev/null 2>&1; then
+    lipo -archs "$bin" 2>/dev/null | grep -qw "$want"
+    return
+  fi
+  if command -v file >/dev/null 2>&1; then
+    case "$want" in
+      arm64)  file -b "$bin" | grep -qi 'arm64' ;;
+      x86_64) file -b "$bin" | grep -qiE 'x86_64|x86-64' ;;
+      *)      return 1 ;;
+    esac
+    return
+  fi
+  return 1
+}
+
+ensure_heimdall() {
+  if [ ! -x "$HEIMDALL_BIN" ]; then
+    echo "Bundled Heimdall is missing."
+  elif heimdall_has_arch "$HEIMDALL_BIN" "$ARCH"; then
+    return 0
+  else
+    echo "Bundled Heimdall has no $ARCH slice (committed binary is Apple Silicon arm64)."
+  fi
+
+  if [ -f "$SCRIPT_DIR/scripts/build-heimdall.sh" ] && \
+     { [ -n "${LIBUSB_PREFIX:-}" ] || command -v brew >/dev/null 2>&1; }; then
+    echo "==> Rebuilding Heimdall for $ARCH..."
+    "$SCRIPT_DIR/scripts/build-heimdall.sh"
+    if [ -x "$HEIMDALL_BIN" ] && heimdall_has_arch "$HEIMDALL_BIN" "$ARCH"; then
+      return 0
+    fi
+  fi
+
+  echo "error: $HEIMDALL_BIN is missing or is not a $ARCH binary." >&2
+  echo "  On this Mac run:" >&2
+  echo "    brew install libusb" >&2
+  echo "    ./scripts/build-heimdall.sh" >&2
+  exit 1
+}
+
 echo "==> Cleaning previous build..."
 rm -rf "$BUILD_DIR" "$APP_BUNDLE"
 mkdir -p "$BUILD_DIR" "$CONTENTS/MacOS" "$CONTENTS/Resources"
 
-if [ ! -x "$HEIMDALL_BIN" ]; then
-  echo "error: $HEIMDALL_BIN missing. Run scripts/build-heimdall.sh first." >&2
-  exit 1
-fi
+ensure_heimdall
 
 echo "==> Compiling & linking Swift sources..."
 swiftc \
@@ -71,7 +118,7 @@ sed \
   -e 's|\$(PRODUCT_BUNDLE_PACKAGE_TYPE)|APPL|g' \
   -e 's|\$(PRODUCT_NAME)|OdinMac|g' \
   -e 's|\$(DEVELOPMENT_LANGUAGE)|en|g' \
-  -e 's|\$(MACOSX_DEPLOYMENT_TARGET)|13.0|g' \
+  -e "s|\$(MACOSX_DEPLOYMENT_TARGET)|${MACOS_MIN}|g" \
   OdinMac/Info.plist > "$CONTENTS/Info.plist"
 
 # Compile asset catalog → .car if actool is available, else copy raw
@@ -86,7 +133,7 @@ if command -v actool &>/dev/null; then
     --enable-on-demand-resources NO \
     --development-region en \
     --target-device mac \
-    --minimum-deployment-target 13.0 \
+    --minimum-deployment-target "$MACOS_MIN" \
     --platform macosx \
     --compile "$CONTENTS/Resources" \
     OdinMac/Assets.xcassets \
@@ -104,6 +151,7 @@ codesign --force --deep --sign - \
 
 echo ""
 echo "✓ Build successful: $SCRIPT_DIR/$APP_BUNDLE"
+echo "  Architecture: $ARCH    Deployment target: macOS $MACOS_MIN"
 echo "  Run: open $APP_BUNDLE"
 echo ""
 ls -lh "$CONTENTS/MacOS/OdinMac" "$CONTENTS/Resources/heimdall"

@@ -340,7 +340,7 @@ struct SetupView: View {
 
     private func checkTools() {
         let fm = FileManager.default
-        brewPath = ["/opt/homebrew/bin/brew", "/usr/local/bin/brew"]
+        brewPath = Self.brewBinCandidates
             .first(where: { fm.isExecutableFile(atPath: $0) })
 
         let lz4OK = ["/opt/homebrew/bin/lz4", "/usr/local/bin/lz4", "/usr/bin/lz4"]
@@ -555,18 +555,41 @@ struct SetupView: View {
         }
     }
 
+    /// Official Homebrew prefix: /opt/homebrew on Apple Silicon, /usr/local on Intel.
+    private static var preferredBrewPrefix: String {
+        #if arch(arm64)
+        return "/opt/homebrew"
+        #else
+        return "/usr/local"
+        #endif
+    }
+
+    private static let brewBinCandidates = [
+        "/opt/homebrew/bin/brew",
+        "/usr/local/bin/brew",
+    ]
+
     /// Homebrew's installer refuses to run as root and aborts if invoked from a
     /// `with administrator privileges` AppleScript block (which runs as root). So we
-    /// only elevate the one step that genuinely needs it (creating /opt/homebrew and
-    /// handing it to the current user), then run the official installer unprivileged.
+    /// only elevate the one step that genuinely needs it (creating the Homebrew
+    /// prefix and handing it to the current user), then run the official installer
+    /// unprivileged. Apple Silicon uses /opt/homebrew; Intel uses /usr/local.
     private func installHomebrew(toolIndex: Int) {
         let toolID = tools[toolIndex].id
         installing = toolID
-        installLog = "$ Preparing /opt/homebrew (enter your password when prompted)...\n"
+        let prefix = Self.preferredBrewPrefix
+        installLog = "$ Preparing \(prefix) (enter your password when prompted)...\n"
 
         Task {
             let user = NSUserName()
-            let prepScript = "do shell script \"mkdir -p /opt/homebrew && chown -R \(user):admin /opt/homebrew\" with administrator privileges with prompt \"OdinMac needs to prepare /opt/homebrew before installing Homebrew.\""
+            let prepCmd: String
+            #if arch(arm64)
+            prepCmd = "mkdir -p /opt/homebrew && chown -R \(user):admin /opt/homebrew"
+            #else
+            // Do not chown all of /usr/local — only the Homebrew directories.
+            prepCmd = "mkdir -p /usr/local/Homebrew /usr/local/bin /usr/local/Cellar /usr/local/opt /usr/local/Caskroom /usr/local/var /usr/local/etc && chown -R \(user):admin /usr/local/Homebrew /usr/local/Cellar /usr/local/opt /usr/local/Caskroom /usr/local/var /usr/local/etc"
+            #endif
+            let prepScript = "do shell script \"\(prepCmd)\" with administrator privileges with prompt \"OdinMac needs to prepare \(prefix) before installing Homebrew.\""
 
             let prep = Process()
             prep.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
@@ -588,7 +611,7 @@ struct SetupView: View {
                     return
                 }
 
-                await MainActor.run { installLog += "✓ /opt/homebrew ready.\n$ Installing Homebrew (this can take a few minutes)...\n" }
+                await MainActor.run { installLog += "✓ \(prefix) ready.\n$ Installing Homebrew (this can take a few minutes)...\n" }
 
                 let proc = Process()
                 proc.executableURL = URL(fileURLWithPath: "/bin/bash")
@@ -612,7 +635,7 @@ struct SetupView: View {
                 proc.waitUntilExit()
 
                 let fm = FileManager.default
-                let newBrewPath = ["/opt/homebrew/bin/brew"].first(where: { fm.isExecutableFile(atPath: $0) })
+                let newBrewPath = Self.brewBinCandidates.first(where: { fm.isExecutableFile(atPath: $0) })
 
                 await MainActor.run {
                     brewPath = newBrewPath

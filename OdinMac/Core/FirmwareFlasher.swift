@@ -24,7 +24,7 @@ enum FlashError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .noEngine:
-            return "Heimdall engine missing. Rebuild OdinMac with build.sh."
+            return "Heimdall engine missing or wrong architecture. Rebuild with scripts/build-heimdall.sh && ./build.sh"
         case .noDevice:
             return "No Samsung device detected in Download Mode."
         case .nothingToFlash:
@@ -400,7 +400,7 @@ final class FirmwareFlasher: ObservableObject {
         let fm = FileManager.default
         if let res = Bundle.main.resourceURL?.appendingPathComponent("lz4"),
            fm.isExecutableFile(atPath: res.path) { return res }
-        for p in ["/opt/homebrew/bin/lz4", "/usr/local/bin/lz4"] where fm.isExecutableFile(atPath: p) {
+        for p in ["/opt/homebrew/bin/lz4", "/usr/local/bin/lz4", "/usr/bin/lz4"] where fm.isExecutableFile(atPath: p) {
             return URL(fileURLWithPath: p)
         }
         return nil

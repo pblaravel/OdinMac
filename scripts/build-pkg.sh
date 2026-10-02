@@ -5,6 +5,8 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$SCRIPT_DIR"
+# shellcheck source=macos-target.sh
+. "$SCRIPT_DIR/scripts/macos-target.sh"
 
 VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" OdinMac/Info.plist)
 PKG_ID="com.odinmac.app.pkg"
@@ -15,7 +17,7 @@ RESOURCES_DIR="scripts/pkg-resources"
 COMPONENT_PKG="$BUILD_DIR/OdinMac.pkg"
 COMPONENT_PLIST="$BUILD_DIR/component.plist"
 DISTRIBUTION_XML="$BUILD_DIR/distribution.xml"
-OUTPUT_PKG="releases/OdinMac-v${VERSION}-macOS-arm64.pkg"
+OUTPUT_PKG="releases/OdinMac-v${VERSION}-${RELEASE_SUFFIX}.pkg"
 
 echo "==> Building OdinMac.app..."
 ./build.sh
@@ -40,7 +42,11 @@ pkgbuild \
   "$COMPONENT_PKG"
 
 echo "==> Generating distribution.xml..."
-sed "s|\$(VERSION)|$VERSION|g" "$RESOURCES_DIR/distribution.xml" > "$DISTRIBUTION_XML"
+sed \
+  -e "s|\$(VERSION)|$VERSION|g" \
+  -e "s|\$(ARCH)|$ARCH|g" \
+  -e "s|\$(MACOS_MIN)|$MACOS_MIN|g" \
+  "$RESOURCES_DIR/distribution.xml" > "$DISTRIBUTION_XML"
 
 echo "==> Building product package..."
 mkdir -p releases
@@ -53,4 +59,5 @@ productbuild \
 
 echo ""
 echo "✓ Package created: $SCRIPT_DIR/$OUTPUT_PKG"
+echo "  Architecture: $ARCH    Minimum macOS: $MACOS_MIN"
 shasum -a 256 "$OUTPUT_PKG"
