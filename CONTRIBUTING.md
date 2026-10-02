@@ -18,8 +18,10 @@ cd OdinMac
 open OdinMac.app
 ```
 
-The build requires an Apple Silicon Mac with macOS 13 or later and Xcode Command
-Line Tools.
+The build requires an Intel or Apple Silicon Mac with macOS 12 or later and
+Xcode Command Line Tools. On Intel, rebuild the bundled Heimdall engine first
+(`brew install libusb && ./scripts/build-heimdall.sh`) or let `build.sh` do it
+when Homebrew libusb is already installed.
 
 ## Pull Requests
 

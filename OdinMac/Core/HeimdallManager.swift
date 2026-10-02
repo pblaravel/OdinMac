@@ -17,7 +17,7 @@ final class HeimdallManager: @unchecked Sendable {
         var errorDescription: String? {
             switch self {
             case .notFound:
-                return "Heimdall engine not found inside OdinMac.app. Rebuild with build.sh."
+                return "Heimdall engine not found inside OdinMac.app, or it is the wrong CPU architecture. On this Mac run: brew install libusb && ./scripts/build-heimdall.sh && ./build.sh"
             case .commandFailed(let cmd, let out):
                 let tail = out.split(separator: "\n").suffix(4).joined(separator: "\n")
                 return "heimdall \(cmd) failed:\n\(tail)"
@@ -44,22 +44,24 @@ final class HeimdallManager: @unchecked Sendable {
 
     // MARK: - Locating the engine
 
-    /// Resolved path to the heimdall binary, or nil if it can't be found.
+    /// Resolved path to a heimdall binary that can run on this CPU, or nil.
     let heimdallURL: URL? = {
         let fm = FileManager.default
+        var candidates: [URL] = []
         // 1) Bundled inside the .app (the normal, self-contained case)
-        if let res = Bundle.main.resourceURL?.appendingPathComponent("heimdall"),
-           fm.isExecutableFile(atPath: res.path) {
-            return res
+        if let res = Bundle.main.resourceURL?.appendingPathComponent("heimdall") {
+            candidates.append(res)
         }
         // 2) Common locations / repo checkout (useful when run from build dir)
-        let candidates = [
-            "/opt/homebrew/bin/heimdall",
-            "/usr/local/bin/heimdall",
-            FileManager.default.currentDirectoryPath + "/vendor/heimdall/heimdall",
-        ]
-        for path in candidates where fm.isExecutableFile(atPath: path) {
-            return URL(fileURLWithPath: path)
+        candidates.append(contentsOf: [
+            URL(fileURLWithPath: "/opt/homebrew/bin/heimdall"),
+            URL(fileURLWithPath: "/usr/local/bin/heimdall"),
+            URL(fileURLWithPath: FileManager.default.currentDirectoryPath + "/vendor/heimdall/heimdall"),
+        ])
+        for url in candidates where fm.isExecutableFile(atPath: url.path) {
+            if MachOFile.containsCurrentArchitecture(at: url) {
+                return url
+            }
         }
         return nil
     }()
@@ -266,5 +268,60 @@ final class HeimdallManager: @unchecked Sendable {
         current = nil
         let output = String(data: full, encoding: .utf8) ?? ""
         return RunResult(exitCode: proc.terminationStatus, output: output)
+    }
+}
+
+/// Minimal Mach-O reader used to reject a bundled Heimdall built for the other CPU.
+enum MachOFile {
+    private static let mhMagic64: UInt32 = 0xFEED_FACF
+    private static let mhCigam64: UInt32 = 0xCFFA_EDFE
+    private static let fatMagic: UInt32 = 0xCAFE_BABE
+    private static let fatCigam: UInt32 = 0xBEBA_FECA
+    private static let cpuTypeX86_64: UInt32 = 0x0100_0007
+    private static let cpuTypeARM64: UInt32 = 0x0100_000C
+
+    static var currentCPUType: UInt32 {
+        #if arch(arm64)
+        return cpuTypeARM64
+        #elseif arch(x86_64)
+        return cpuTypeX86_64
+        #else
+        return 0
+        #endif
+    }
+
+    static func containsCurrentArchitecture(at url: URL) -> Bool {
+        guard let data = try? Data(contentsOf: url, options: [.mappedIfSafe]),
+              data.count >= 8 else { return false }
+        let want = currentCPUType
+        guard want != 0 else { return true }
+
+        let magic = readUInt32(data, 0, swap: false)
+        if magic == mhMagic64 || magic == mhCigam64 {
+            let swap = magic == mhCigam64
+            return readUInt32(data, 4, swap: swap) == want
+        }
+        if magic == fatMagic || magic == fatCigam {
+            let swap = magic == fatCigam
+            let nfat = Int(readUInt32(data, 4, swap: swap))
+            // fat_arch: cputype, cpusubtype, offset, size, align (5 × UInt32)
+            let headerSize = 8
+            let archSize = 20
+            guard nfat > 0, nfat < 16, data.count >= headerSize + nfat * archSize else { return false }
+            for i in 0..<nfat {
+                let cpu = readUInt32(data, headerSize + i * archSize, swap: swap)
+                if cpu == want { return true }
+            }
+            return false
+        }
+        return false
+    }
+
+    private static func readUInt32(_ data: Data, _ offset: Int, swap: Bool) -> UInt32 {
+        let value = UInt32(data[offset])
+            | UInt32(data[offset + 1]) << 8
+            | UInt32(data[offset + 2]) << 16
+            | UInt32(data[offset + 3]) << 24
+        return swap ? value.byteSwapped : value
     }
 }

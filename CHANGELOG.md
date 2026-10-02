@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **macOS 12 Monterey and Intel (x86_64) support.** The deployment target is
+  12.0. `build.sh`, the Xcode project, and the Heimdall rebuild script now
+  target the host architecture (`arm64` or `x86_64`) instead of hard-coding
+  Apple Silicon and macOS 13. Release ZIP/PKG names include the built
+  architecture (`macOS-arm64` or `macOS-x86_64`). The installer accepts that
+  architecture and macOS 12+. Homebrew setup uses `/usr/local` on Intel and
+  `/opt/homebrew` on Apple Silicon.
+
+### Changed
+
+- Removed the macOS 13-only `.windowResizability` SwiftUI API. Window size is
+  still locked through AppKit in `AppDelegate`.
+- `build.sh` refuses to bundle a Heimdall binary that has no slice for the
+  current CPU, and rebuilds it automatically when libusb is available.
+- Replaced a few newer SF Symbols on the Root tab with symbols present on
+  macOS 12.
+
 ## v1.1.5
 
 ### Fixed

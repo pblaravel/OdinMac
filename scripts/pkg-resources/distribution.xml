@@ -3,11 +3,11 @@
     <title>OdinMac</title>
     <organization>com.odinmac.app</organization>
     <domains enable_localSystem="true"/>
-    <options customize="never" require-scripts="true" hostArchitectures="arm64" rootVolumeOnly="true"/>
+    <options customize="never" require-scripts="true" hostArchitectures="$(ARCH)" rootVolumeOnly="true"/>
 
     <volume-check>
         <allowed-os-versions>
-            <os-version min="13.0"/>
+            <os-version min="$(MACOS_MIN)"/>
         </allowed-os-versions>
     </volume-check>
 

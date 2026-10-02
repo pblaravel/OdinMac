@@ -5,15 +5,15 @@
 </p>
 
 <p align="center">
-  <strong>A native Samsung firmware flasher for Apple Silicon Macs.</strong><br>
+  <strong>A native Samsung firmware flasher for Intel and Apple Silicon Macs.</strong><br>
   Flash BL, AP, CP, CSC, HOME_CSC, and USERDATA packages from macOS without
   Windows, a virtual machine, or a kernel extension.
 </p>
 
 <p align="center">
   <a href="https://github.com/h4rithd/OdinMac/releases/latest"><img src="https://img.shields.io/github/v/release/h4rithd/OdinMac?style=flat-square" alt="Latest release"></a>
-  <img src="https://img.shields.io/badge/macOS-13%2B-black?style=flat-square&logo=apple" alt="macOS 13 or later">
-  <img src="https://img.shields.io/badge/Apple%20Silicon-arm64-lightgrey?style=flat-square" alt="Apple Silicon">
+  <img src="https://img.shields.io/badge/macOS-12%2B-black?style=flat-square&logo=apple" alt="macOS 12 or later">
+  <img src="https://img.shields.io/badge/Intel%20%7C%20Apple%20Silicon-x86__64%20%2B%20arm64-lightgrey?style=flat-square" alt="Intel and Apple Silicon">
   <img src="https://img.shields.io/badge/SwiftUI-native-F05138?style=flat-square&logo=swift" alt="Native SwiftUI">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT License"></a>
 </p>
@@ -51,7 +51,7 @@ Heimdall flash session with live logs and progress.
 - Detect normally booted devices over ADB and read model, Android version, CSC,
   Knox state, and bootloader lock status.
 - Provide guarded Re-partition and NAND Erase All options with confirmations.
-- Bundle a kext-free Apple Silicon Heimdall engine with static libusb.
+- Bundle a kext-free Heimdall engine with static libusb (arm64 or x86_64).
 
 ### Planned
 
@@ -62,8 +62,8 @@ Heimdall flash session with live logs and progress.
 
 | Requirement | Details |
 |---|---|
-| Mac | Apple Silicon Mac (`arm64`) |
-| macOS | macOS 13 Ventura or later |
+| Mac | Intel (`x86_64`) or Apple Silicon (`arm64`) Mac |
+| macOS | macOS 12 Monterey or later |
 | Device | Samsung device supported by Heimdall and accessible in Download Mode |
 | Cable | Reliable USB data cable connected directly to the Mac |
 | Firmware | Firmware matching the device's exact model and region |
@@ -84,7 +84,8 @@ brew install android-platform-tools
 
 1. Download the latest `.pkg` from
    [GitHub Releases](https://github.com/h4rithd/OdinMac/releases/latest).
-2. Double-click `OdinMac-v*-macOS-arm64.pkg`. macOS will warn that it is from
+2. Double-click the `.pkg` that matches this Mac (`OdinMac-v*-macOS-arm64.pkg`
+   or `OdinMac-v*-macOS-x86_64.pkg`). macOS will warn that it is from
    an unidentified developer because the installer is ad-hoc signed and not
    notarized. Right-click (Control-click) the `.pkg` and choose **Open**, or
    approve it from **System Settings > Privacy & Security**. This one-time
@@ -99,7 +100,8 @@ brew install android-platform-tools
 
 1. Download the latest ZIP from
    [GitHub Releases](https://github.com/h4rithd/OdinMac/releases/latest).
-2. Unzip `OdinMac-v*-macOS-arm64.zip`.
+2. Unzip the ZIP that matches this Mac (`OdinMac-v*-macOS-arm64.zip` or
+   `OdinMac-v*-macOS-x86_64.zip`).
 3. Move `OdinMac.app` to `/Applications`.
 4. Remove the quarantine attribute because the app is ad-hoc signed and is not
    notarized:
@@ -244,8 +246,25 @@ cd OdinMac
 open OdinMac.app
 ```
 
-`build.sh` compiles the Swift sources, bundles the vendored Heimdall engine and
+`build.sh` compiles the Swift sources for the host architecture (`arm64` or
+`x86_64`) with a macOS 12.0 deployment target, bundles the Heimdall engine and
 app icon, assembles `OdinMac.app`, and ad-hoc signs the result.
+
+The committed Heimdall binary is Apple Silicon `arm64`. On an Intel Mac,
+`build.sh` rebuilds it automatically when Homebrew libusb is installed; otherwise
+rebuild it first:
+
+```bash
+brew install libusb
+./scripts/build-heimdall.sh
+./build.sh
+```
+
+Override architecture or minimum OS if needed:
+
+```bash
+ODINMAC_ARCH=x86_64 ODINMAC_MACOS_MIN=12.0 ./build.sh
+```
 
 Create a release ZIP and `.pkg` installer:
 
@@ -268,7 +287,7 @@ brew install libusb
 
 The rebuild script applies
 [`patches/heimdall-use-local-pit.patch`](patches/heimdall-use-local-pit.patch)
-and writes the reproducible arm64 binary to `vendor/heimdall/heimdall`.
+and writes the reproducible host-architecture binary to `vendor/heimdall/heimdall`.
 
 ## Project Structure
 

@@ -63,7 +63,7 @@ final class FlashViewModel: ObservableObject {
         if heimdall.isAvailable {
             appendLog("Flash engine: Heimdall \(heimdall.version)", level: .success)
         } else {
-            appendLog("Heimdall engine not found inside the app. Rebuild with build.sh.", level: .error)
+            appendLog("Heimdall engine not found, or it is the wrong CPU architecture. On this Mac: brew install libusb && ./scripts/build-heimdall.sh && ./build.sh", level: .error)
         }
 
         usb.startMonitoring { [weak self] connected in

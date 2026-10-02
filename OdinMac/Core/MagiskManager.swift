@@ -143,7 +143,7 @@ final class MagiskManager: ObservableObject {
     func patchBootLocally(apURL: URL, magiskAPK: URL) async {
         guard !isBusy else { return }
         guard let magiskbootBin = locateMagiskboot() else {
-            error = "magiskboot not found. Install it to /opt/homebrew/bin/magiskboot or place it in the app's Resources folder. See: github.com/topjohnwu/magiskboot_build"
+            error = "magiskboot not found. Install it to /opt/homebrew/bin or /usr/local/bin, or place it in the app's Resources folder. See: github.com/topjohnwu/magiskboot_build"
             return
         }
         isBusy = true

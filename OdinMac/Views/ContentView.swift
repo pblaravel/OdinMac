@@ -181,7 +181,7 @@ struct ContentView: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundColor(.orange)
                 .font(.system(size: 11))
-            Text("Heimdall flash engine not found inside the app. Rebuild with build.sh.")
+            Text("Heimdall flash engine not found, or it is the wrong CPU architecture. Rebuild with scripts/build-heimdall.sh && ./build.sh.")
                 .font(.system(size: 11, weight: .medium))
                 .foregroundColor(.orange)
             Spacer()

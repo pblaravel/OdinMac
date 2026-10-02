@@ -3,10 +3,12 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$SCRIPT_DIR"
+# shellcheck source=macos-target.sh
+. "$SCRIPT_DIR/scripts/macos-target.sh"
 
 VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" OdinMac/Info.plist)
-ARCHIVE="releases/OdinMac-v${VERSION}-macOS-arm64.zip"
-PKG="releases/OdinMac-v${VERSION}-macOS-arm64.pkg"
+ARCHIVE="releases/OdinMac-v${VERSION}-${RELEASE_SUFFIX}.zip"
+PKG="releases/OdinMac-v${VERSION}-${RELEASE_SUFFIX}.pkg"
 
 ./scripts/build-pkg.sh
 
